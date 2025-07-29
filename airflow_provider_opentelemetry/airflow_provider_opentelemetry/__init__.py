@@ -25,7 +25,7 @@ def get_provider_info():
         "operators": [],
         "sensors": [],
         "listeners": ["airflow_provider_opentelemetry.plugins.otel_listener.OpenTelemetryListener"],
-        "connection_types": [
+        "connection-types": [
             {
                 "hook-class-name": "airflow_provider_opentelemetry.hooks.otel.OtelHook",
                 "connection-type": "otel",
