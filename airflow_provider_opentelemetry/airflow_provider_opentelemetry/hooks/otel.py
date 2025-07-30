@@ -23,23 +23,16 @@ import random
 from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics._internal.export import PeriodicExportingMetricReader
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, SERVICE_NAMESPACE, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import NonRecordingSpan, TraceFlags
-from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
-from opentelemetry.sdk._logs.export import SimpleLogRecordProcessor
-from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.metrics.otel_logger import SafeOtelLogger
 from airflow_provider_opentelemetry.models import (
     EMPTY_SPAN,
     EMPTY_TIMER,
@@ -159,15 +152,15 @@ class OtelHook(BaseHook, LoggingMixin):
                 self.url = conn.host
                 self.header_name = conn.login
                 self.interval = conn.port
-                self.otel_service = DEFAULT_SERVICE_NAME  # default service name
+                self.otel_service = "detectdatamanager"  # default service name
                 conn_valid = True
 
             if conn_valid is True:
                 self.resource = Resource.create(
                     attributes={
                         HOST_NAME: get_hostname(), 
-                        SERVICE_NAME: self.otel_service,
-                        SERVICE_NAMESPACE: "",
+                        SERVICE_NAME: "detectdatamanager",
+                        SERVICE_NAMESPACE: "detect",
                         SERVICE_VERSION: "2025.3.0",
                         "application": "ddm",
                         "hook": "otel",
@@ -180,34 +173,14 @@ class OtelHook(BaseHook, LoggingMixin):
 
                 if self.url and self.url is None:
                     raise AirflowException("Please provide valid URL of the OTEL endpoint.")
-                """Metrics"""
-                readers = [
-                    PeriodicExportingMetricReader(
-                        OTLPMetricExporter(endpoint=f"{self.url}/v1/metrics", headers=headers),
-                        export_interval_millis=int(self.interval),
-                    )
-                ]
-                self.meter_provider = MeterProvider(resource=self.resource, metric_readers=readers, shutdown_on_exit=False)
-                self.metric_logger = SafeOtelLogger(self.meter_provider, "airflow")
-                self.log.info("Otel metrics hook initialized.")
 
                 """Traces"""
                 self.tracer_provider = TracerProvider(resource=self.resource)
                 self.tracer_processor = SimpleSpanProcessor(
-                    span_exporter=OTLPSpanExporter(self.url)
+                    span_exporter=OTLPSpanExporter(self.url, insecure=True)
                 )
                 self.tracer_provider.add_span_processor(self.tracer_processor)
                 self.log.info("Otel traces hook initialized.")
-
-                """Logs"""
-                self.logger_provider = LoggerProvider(resource=self.resource)
-                self.log_processor = SimpleLogRecordProcessor(
-                    OTLPLogExporter(endpoint=f"{self.url}/v1/logs", headers=headers)
-                )
-                self.logger_provider.add_log_record_processor(self.log_processor)
-                self.logging_handler = LoggingHandler(level=logging.NOTSET, logger_provider=self.logger_provider)
-                logging.getLogger(self.__class__.__name__).addHandler(self.logging_handler)
-                self.log.info("Otel log hook initialized.")
 
                 self.ready = True
 
