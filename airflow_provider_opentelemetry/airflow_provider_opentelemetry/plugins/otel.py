@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow_provider_opentelemetry.hooks.otel import is_listener_enabled, is_otel_traces_enabled
+from airflow_provider_opentelemetry.hooks.otel import is_listener_enabled, is_otel_traces_enabled, OtelHook
 from airflow_provider_opentelemetry.plugins.otel_listener import get_opentelemetry_listener
 from airflow_provider_opentelemetry.plugins.otel_extra_link import get_opentelemetry_links
 
@@ -29,3 +29,4 @@ class OtelPlugin(AirflowPlugin):
         listeners = [get_opentelemetry_listener()]
 
     global_operator_extra_links = get_opentelemetry_links()
+    hooks = [OtelHook]
