@@ -90,13 +90,21 @@ class OpenTelemetryListener:
             trace_id=trace_id, span_id=parent_id, is_remote=True, trace_flags=TraceFlags(0x01)
         )
         ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
+        try:
+            queued_dttm = task_instance.queued_dttm
+            if not queued_dttm:
+                raise
+        except:
+            from datetime import datetime
+            queued_dttm = datetime.now()
+        
         with self.otel_hook.start_as_current_span(
             name=task_instance.task_id,
             library_name="taskinstance",
             trace_id=trace_id,
             span_id=span_id,
             context=ctx,
-            start_time=datetime_to_nano(task_instance.queued_dttm),
+            start_time=datetime_to_nano(queued_dttm),
         ) as span:
             span.set_attribute("category", "scheduler")
             span.set_attribute("task_id", task_instance.task_id)
@@ -117,8 +125,8 @@ class OpenTelemetryListener:
             span.set_attribute("pool", task_instance.pool)
             span.set_attribute("queue", task_instance.queue)
             span.set_attribute("priority_weight", task_instance.priority_weight)
-            span.set_attribute("queued_dttm", str(task_instance.queued_dttm))
-            span.set_attribute("ququed_by_job_id", task_instance.queued_by_job_id)
+            span.set_attribute("queued_dttm", str(queued_dttm))
+            span.set_attribute("queued_by_job_id", task_instance.queued_by_job_id)
             span.set_attribute("pid", task_instance.pid)
             span.add_event(name="queued", timestamp=datetime_to_nano(task_instance.queued_dttm))
             span.add_event(name="started", timestamp=datetime_to_nano(task_instance.start_date))
@@ -141,12 +149,19 @@ class OpenTelemetryListener:
     def _handle_dagrun(self, dag_run: DagRun):
         trace_id = int(gen_trace_id(dag_run=dag_run), 16)
         span_id = int(gen_dag_span_id(dag_run=dag_run), 16)
+        try:
+            queued_dttm = dag_run.queued_at
+            if not queued_dttm:
+                raise
+        except:
+            from datetime import datetime
+            queued_dttm = datetime.now()
         with self.otel_hook.start_as_current_span(
             name=dag_run.dag_id,
             library_name="dagrun",
             trace_id=trace_id,
             span_id=span_id,
-            start_time=datetime_to_nano(dag_run.queued_at),
+            start_time=datetime_to_nano(queued_dttm),
         ) as span:
             if dag_run.state is DagRunState.FAILED:
                 span.set_attribute("error", True)
@@ -155,7 +170,7 @@ class OpenTelemetryListener:
                 "dag_id": str(dag_run.dag_id),
                 "execution_date": str(dag_run.execution_date),
                 "run_id": str(dag_run.run_id),
-                "queued_at": str(dag_run.queued_at),
+                "queued_at": str(queued_dttm),
                 "run_start_date": str(dag_run.start_date),
                 "run_end_date": str(dag_run.end_date),
                 "run_duration": str(
@@ -171,7 +186,7 @@ class OpenTelemetryListener:
                 "dag_hash": str(dag_run.dag_hash),
                 "conf": str(dag_run.conf),
             }
-            span.add_event(name="queued", timestamp=datetime_to_nano(dag_run.queued_at))
+            span.add_event(name="queued", timestamp=datetime_to_nano(queued_dttm))
             span.add_event(name="started", timestamp=datetime_to_nano(dag_run.start_date))
             span.add_event(name="ended", timestamp=datetime_to_nano(dag_run.end_date))
             span.set_attributes(attributes)
