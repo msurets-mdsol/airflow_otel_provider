@@ -173,27 +173,14 @@ class OtelHook(BaseHook, LoggingMixin):
 
                 """Traces"""
                 self.tracer_provider = TracerProvider(resource=self.resource)
-                # self.tracer_processor = SimpleSpanProcessor(
-                #     span_exporter=OTLPSpanExporter(self.url, insecure=True)
-                # )
                 self.tracer_processor = SimpleSpanProcessor(
-                    span_exporter=ConsoleSpanExporter()
+                    span_exporter=OTLPSpanExporter(self.url, insecure=True)
                 )
+                # self.tracer_processor = SimpleSpanProcessor(
+                #     span_exporter=ConsoleSpanExporter()
+                # )
                 self.tracer_provider.add_span_processor(self.tracer_processor)
-
-
-                tracer = trace.get_tracer(__name__)
-
-                with tracer.start_as_current_span("test-console-span"):
-                    print("This span should appear in the console.")
-                    
-                self.tracer_provider.shutdown()
-
-
                 self.log.info("Otel traces hook initialized.")
-
-
-
                 self.ready = True
 
         except Exception:
