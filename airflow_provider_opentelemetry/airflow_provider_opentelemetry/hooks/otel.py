@@ -26,7 +26,7 @@ from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, SERVICE_NAMESPACE, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import NonRecordingSpan, TraceFlags
 
@@ -176,8 +176,11 @@ class OtelHook(BaseHook, LoggingMixin):
 
                 """Traces"""
                 self.tracer_provider = TracerProvider(resource=self.resource)
+                # self.tracer_processor = SimpleSpanProcessor(
+                #     span_exporter=OTLPSpanExporter(self.url, insecure=True)
+                # )
                 self.tracer_processor = SimpleSpanProcessor(
-                    span_exporter=OTLPSpanExporter(self.url, insecure=True)
+                    span_exporter=ConsoleSpanExporter()
                 )
                 self.tracer_provider.add_span_processor(self.tracer_processor)
                 self.log.info("Otel traces hook initialized.")
