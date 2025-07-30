@@ -27,7 +27,7 @@ from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExp
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import PeriodicExportingMetricReader
-from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
+from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, SERVICE_NAMESPACE, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.id_generator import IdGenerator
@@ -78,7 +78,7 @@ def is_listener_enabled() -> bool:
 
 
 OTEL_CONN_ID = "OTEL_CONN_ID"
-DEFAULT_SERVICE_NAME = "Airflow"
+DEFAULT_SERVICE_NAME = "ddm"
 
 
 class AirflowOtelIdGenerator(IdGenerator):
@@ -167,11 +167,11 @@ class OtelHook(BaseHook, LoggingMixin):
                     attributes={
                         HOST_NAME: get_hostname(), 
                         SERVICE_NAME: self.otel_service,
+                        SERVICE_NAMESPACE: "",
+                        SERVICE_VERSION: "2025.3.0",
+                        "application": "ddm",
                         "hook": "otel",
-                        "conn_id": self.otel_conn_id,
-                        "conn_valid": conn_valid,
-                        "is_otel_metrics_enabled": is_otel_metrics_enabled(),
-                        "is_otel_traces_enabled": is_otel_traces_enabled(),
+
                     }
                 )
                 headers = {"Content-Type": "application/json"}
@@ -194,7 +194,7 @@ class OtelHook(BaseHook, LoggingMixin):
                 """Traces"""
                 self.tracer_provider = TracerProvider(resource=self.resource)
                 self.tracer_processor = SimpleSpanProcessor(
-                    span_exporter=OTLPSpanExporter(endpoint=f"{self.url}/v1/traces", headers=headers)
+                    span_exporter=OTLPSpanExporter(self.url)
                 )
                 self.tracer_provider.add_span_processor(self.tracer_processor)
                 self.log.info("Otel traces hook initialized.")
