@@ -167,9 +167,6 @@ class OtelHook(BaseHook, LoggingMixin):
 
                     }
                 )
-                headers = {"Content-Type": "application/json"}
-                if self.api_key is not None and self.header_name is not None:
-                    headers[self.header_name] = self.api_key
 
                 if self.url and self.url is None:
                     raise AirflowException("Please provide valid URL of the OTEL endpoint.")
@@ -183,7 +180,19 @@ class OtelHook(BaseHook, LoggingMixin):
                     span_exporter=ConsoleSpanExporter()
                 )
                 self.tracer_provider.add_span_processor(self.tracer_processor)
+
+
+                tracer = trace.get_tracer(__name__)
+
+                with tracer.start_as_current_span("test-console-span"):
+                    print("This span should appear in the console.")
+                    
+                self.tracer_provider.shutdown()
+
+
                 self.log.info("Otel traces hook initialized.")
+
+
 
                 self.ready = True
 
